@@ -1,34 +1,33 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 from ultralytics import YOLO
-import io
-from PIL import Image
 import numpy as np
+from PIL import Image
+import io
 
 app = FastAPI()
-
-# Charger le modèle une fois au lancement du serveur
-model = YOLO("best.pt")
+model = YOLO("best.pt")  # ton modèle
 
 @app.post("/analyze")
-async def analyze_image(file: UploadFile = File(...)):
+async def analyze(file: UploadFile = File(...)):
+    # Lire l'image reçue
     contents = await file.read()
-    image = Image.open(io.BytesIO(contents)).convert("RGB")
-    img_array = np.array(image)
+    img = Image.open(io.BytesIO(contents)).convert("RGB")
+    img_array = np.array(img)
 
-    results = model.predict(source=img_array, conf=0.3, save=False)
+    # Prédiction avec seuil de confiance à 0.2
+    results = model.predict(source=img_array, conf=0.2, save=False)
 
     detections = []
-    for r in results:
-        boxes = r.boxes.xyxy.cpu().numpy()
-        scores = r.boxes.conf.cpu().numpy()
-        classes = r.boxes.cls.cpu().numpy()
-        for box, score, cls in zip(boxes, scores, classes):
-            detections.append({
-                "bbox": box.tolist(),
-                "confidence": float(score),
-                "class_id": int(cls)
-            })
+    # Parcourir toutes les détections
+    for result in results:
+        boxes = result.boxes
+        for box in boxes:
+            detection = {
+                "label": model.names[int(box.cls[0])],
+                "confidence": float(box.conf[0]),
+                "coordinates": box.xyxy[0].tolist()  # [x1, y1, x2, y2]
+            }
+            detections.append(detection)
 
     return JSONResponse(content={"detections": detections})
-
