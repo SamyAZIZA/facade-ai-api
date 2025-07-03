@@ -16,7 +16,7 @@ async def analyze_image(file: UploadFile = File(...)):
     image = Image.open(io.BytesIO(contents)).convert("RGB")
     img_array = np.array(image)
 
-    results = model.predict(source=img_array, conf=0.5, save=False)
+    results = model.predict(source=img_array, conf=0.3, save=False)
 
     detections = []
     for r in results:
